@@ -1,0 +1,191 @@
+version: 2
+
+references:
+  interpolate_environment_variables: &interpolate_environment_variables
+    run:
+      name: Interpolate Environment Variables
+      command: |
+        echo 'set -o allexport' >> ${BASH_ENV}
+        echo 'PATH=$PATH:node_modules/.bin:${ROK8S_INSTALL_PATH}' >> ${BASH_ENV}
+        echo 'CI_SHA1=$CIRCLE_SHA1' >> ${BASH_ENV}
+        echo 'CI_BRANCH=$CIRCLE_BRANCH' >> ${BASH_ENV}
+        echo 'CI_BUILD_NUM=$CIRCLE_BUILD_NUM' >> ${BASH_ENV}
+        echo 'DOCKERTAG=concession_stand' >> ${BASH_ENV}
+        echo 'set +o allexport' >> ${BASH_ENV}
+
+  interpolate_fandor_variables: &interpolate_fandor_variables
+    run:
+      name: Interpolate Fandor Variables
+      command: |
+        echo 'set -o allexport' >> ${BASH_ENV}
+        echo 'SENTRY_DSN=https://testingsentryclient.com' >> ${BASH_ENV}
+        echo 'JUICE_NOTIFICATION_ADDRESS=steve.holmes+development-notification@fandor.com' >> ${BASH_ENV}
+        echo 'set +o allexport' >> ${BASH_ENV}
+
+  build_image: &build_image
+    run:
+        name: Build image
+        command: |
+          docker-pull -f deploy/build.config
+          docker-build -f deploy/build.config
+
+  standup_db: &standup_db
+    run:
+      name: Start postgresql database for testing
+      command: |
+        docker run -d -p 5432:5432 \
+          -e POSTGRES_DB='concession_stand_test' \
+          -e POSTGRES_USER='pg_admin' \
+          -e POSTGRES_PASSWORD='concession_stand_test' \
+          postgres:9.5.11-alpine
+
+  prepare_db: &prepare_db
+    run:
+      name: Configure database, load schema and seed database
+      command: |
+        docker run \
+          --net=host \
+          -e JUICE_NOTIFICATION_ADDRESS=${JUICE_NOTIFICATION_ADDRESS} \
+          -e RAILS_ENV=test \
+          -e DATABASE_HOST='127.0.0.1' \
+          -e DATABASE_NAME='concession_stand_test' \
+          -e DATABASE_USERNAME='pg_admin' \
+          -e DATABASE_PASSWORD='concession_stand_test' \
+          ${DOCKERTAG}:latest  \
+          /bin/bash -c 'cp config/database.circleci.yml config/database.yml; bundle exec rake db:create db:migrate db:test:prepare'
+
+  test_image: &test_image
+    run:
+      name: Test image
+      command: |
+        docker run \
+          --net=host \
+          -e JUICE_NOTIFICATION_ADDRESS=${JUICE_NOTIFICATION_ADDRESS} \
+          -e RAILS_ENV=test \
+          -e DATABASE_HOST='127.0.0.1' \
+          -e DATABASE_NAME='concession_stand_test' \
+          -e DATABASE_USERNAME='pg_admin' \
+          -e DATABASE_PASSWORD='concession_stand_test' \
+          ${DOCKERTAG}:latest  \
+          /bin/bash -c 'cp config/database.circleci.yml config/database.yml; bundle exec rspec'
+
+  push_image: &push_image
+    run:
+      name: Push image
+      command: |
+        docker-push -f deploy/build.config
+
+  configure_awscli: &configure_awscli
+    run:
+      name: Configure awscli
+      command: |
+        prepare-awscli
+
+  job_defaults: &job_defaults
+    docker:
+      - image: quay.io/reactiveops/ci-images:v7.2.8-alpine
+    working_directory: ~/app
+
+  build_and_test_steps: &build_and_test_steps
+    steps:
+      - checkout
+      - setup_remote_docker
+      - *interpolate_environment_variables
+      - *interpolate_fandor_variables
+      - *configure_awscli
+      - *standup_db
+      - *build_image
+      - *prepare_db
+      - *test_image
+      - *push_image
+
+  deploy_steps: &deploy_steps
+    steps:
+      - checkout
+      - setup_remote_docker
+      - *interpolate_environment_variables
+      - *interpolate_fandor_variables
+      - run:
+          name: prepare kubectl
+          command: |
+            prepare-kubectl
+      - run:
+          name: set kubectl context
+          command: |
+            kubectl config use-context $ENV
+      - deploy:
+          name: Deploy
+          command: |
+            k8s-deploy-and-verify -f deploy/$ENV.config
+
+jobs:
+  build:
+    <<: *job_defaults
+    <<: *build_and_test_steps
+
+  deploy-dev:
+    environment:
+      ENV: development
+    <<: *job_defaults
+    <<: *deploy_steps
+
+  deploy-staging:
+    environment:
+      ENV: staging
+    <<: *job_defaults
+    <<: *deploy_steps
+
+  deploy-production:
+    environment:
+      ENV: production
+    <<: *job_defaults
+    <<: *deploy_steps
+
+workflows:
+  version: 2
+  deploy-dev:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - /^epic\/.*/
+                - /^feature\/.*/
+                - /^ro\/.*/
+      - deploy-dev:
+          filters:
+            branches:
+              only:
+                - /^epic\/.*/
+                - /^feature\/.*/
+                - /^ro\/.*/
+          requires:
+            - build
+  deploy-staging:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - deploy-staging:
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+          requires:
+            - build
+  deploy-production:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
+      - deploy-production:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - build
