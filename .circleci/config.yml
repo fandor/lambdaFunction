@@ -58,7 +58,6 @@ references:
       - *configure_awscli
       - *standup_db
       - *build_image
-      - *prepare_db
       - *test_image
       - *push_image
 
