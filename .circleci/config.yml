@@ -39,12 +39,6 @@ references:
           -e POSTGRES_PASSWORD='concession_stand_test' \
           postgres:9.5.11-alpine
 
-  push_image: &push_image
-    run:
-      name: Push image
-      command: |
-        docker-push -f deploy/build.config
-
   configure_awscli: &configure_awscli
     run:
       name: Configure awscli
@@ -52,8 +46,7 @@ references:
         prepare-awscli
 
   job_defaults: &job_defaults
-    docker:
-      - image: quay.io/reactiveops/ci-images:v7.2.8-alpine
+
     working_directory: ~/app
 
   build_and_test_steps: &build_and_test_steps
