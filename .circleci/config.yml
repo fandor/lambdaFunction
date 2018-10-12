@@ -10,7 +10,7 @@ references:
         echo 'CI_SHA1=$CIRCLE_SHA1' >> ${BASH_ENV}
         echo 'CI_BRANCH=$CIRCLE_BRANCH' >> ${BASH_ENV}
         echo 'CI_BUILD_NUM=$CIRCLE_BUILD_NUM' >> ${BASH_ENV}
-        echo 'DOCKERTAG=concession_stand' >> ${BASH_ENV}
+        echo 'DOCKERTAG=reachEngineEventHandler' >> ${BASH_ENV}
         echo 'set +o allexport' >> ${BASH_ENV}
 
   interpolate_fandor_variables: &interpolate_fandor_variables
@@ -38,36 +38,6 @@ references:
           -e POSTGRES_USER='pg_admin' \
           -e POSTGRES_PASSWORD='concession_stand_test' \
           postgres:9.5.11-alpine
-
-  prepare_db: &prepare_db
-    run:
-      name: Configure database, load schema and seed database
-      command: |
-        docker run \
-          --net=host \
-          -e JUICE_NOTIFICATION_ADDRESS=${JUICE_NOTIFICATION_ADDRESS} \
-          -e RAILS_ENV=test \
-          -e DATABASE_HOST='127.0.0.1' \
-          -e DATABASE_NAME='concession_stand_test' \
-          -e DATABASE_USERNAME='pg_admin' \
-          -e DATABASE_PASSWORD='concession_stand_test' \
-          ${DOCKERTAG}:latest  \
-          /bin/bash -c 'cp config/database.circleci.yml config/database.yml; bundle exec rake db:create db:migrate db:test:prepare'
-
-  test_image: &test_image
-    run:
-      name: Test image
-      command: |
-        docker run \
-          --net=host \
-          -e JUICE_NOTIFICATION_ADDRESS=${JUICE_NOTIFICATION_ADDRESS} \
-          -e RAILS_ENV=test \
-          -e DATABASE_HOST='127.0.0.1' \
-          -e DATABASE_NAME='concession_stand_test' \
-          -e DATABASE_USERNAME='pg_admin' \
-          -e DATABASE_PASSWORD='concession_stand_test' \
-          ${DOCKERTAG}:latest  \
-          /bin/bash -c 'cp config/database.circleci.yml config/database.yml; bundle exec rspec'
 
   push_image: &push_image
     run:
