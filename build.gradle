@@ -3,6 +3,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
         mavenCentral()
         mavenLocal()
+        jcenter()
     }
     dependencies {
         classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"
@@ -47,35 +48,39 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom 'io.micronaut:bom:1.0.0.M4'
+        mavenBom 'io.micronaut:micronaut-bom:1.0.0.RC3'
     }
 }
 
 dependencies {
-    annotationProcessor "io.micronaut:inject-java"
-    compile "io.micronaut:function-aws"
-    compile "io.micronaut:inject"
-    compile "io.micronaut:runtime"
+    annotationProcessor "io.micronaut:micronaut-inject-java"
+    annotationProcessor "io.micronaut:micronaut-inject-java" // <2>
+    implementation 'com.beust:klaxon:3.0.1'
+    compile "io.micronaut:micronaut-inject"
+    compile "io.micronaut:micronaut-function-aws"
+    compile "io.micronaut:micronaut-inject"
+    compile "io.micronaut:micronaut-runtime"
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.31"
     compile "org.jetbrains.kotlin:kotlin-reflect:1.2.31"
     compile 'com.amazonaws:aws-java-sdk-s3:1.11.414'
     compile 'com.amazonaws:aws-java-sdk-sns:1.11.414'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.6'
     compile 'com.amazonaws:aws-lambda-java-events:1.0.0'
-    compileOnly "io.micronaut:inject-java"
-    kapt "io.micronaut:inject-java"
-    kaptTest "io.micronaut:inject-java"
+    compileOnly "io.micronaut:micronaut-inject-java"
+    kapt "io.micronaut:micronaut-inject-java"
+    kaptTest "io.micronaut:micronaut-inject-java"
     runtime "ch.qos.logback:logback-classic:1.2.3"
     runtime "com.amazonaws:aws-lambda-java-log4j2:1.0.0"
     runtime "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     runtime "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.4.1"
-    testCompile "io.micronaut:inject-java"
-    testCompile "io.micronaut:function-client"
+    testCompile "io.micronaut:micronaut-inject-java"
+    testCompile "io.micronaut:micronaut-function-client"
     testCompile "org.junit.jupiter:junit-jupiter-api:5.1.0"
     testCompile "org.jetbrains.spek:spek-api:1.1.5"
     testCompile "junit:junit:4.12"
-    testRuntime "io.micronaut:http-server-netty"
-    testRuntime "io.micronaut:function-web"
+    testCompile group: 'io.mockk', name: 'mockk', version: '1.8.9'
+    testRuntime "io.micronaut:micronaut-http-server-netty"
+    testRuntime "io.micronaut:micronaut-function-web"
     testRuntime "org.junit.jupiter:junit-jupiter-engine:5.1.0"
     testRuntime "org.jetbrains.spek:spek-junit-platform-engine:1.1.5"
 }
