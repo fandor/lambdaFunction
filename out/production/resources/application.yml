@@ -1,3 +1,0 @@
-micronaut:
-    function:
-        name: reach-engine-event-handler
