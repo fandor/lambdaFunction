@@ -7,6 +7,7 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.it
 import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 object ReachEngineEventHandlerFunctionTest : Spek({
 
@@ -41,8 +42,10 @@ object ReachEngineEventHandlerFunctionTest : Spek({
 
         describe(" test I/O stream converter ") {
             it("test I/O Stream Test ") {
-                val stream = ByteArrayInputStream("Hello there!".toByteArray())
-                //val output = transformInputStreamToText(stream)
+                val input = "Hello there!"
+                val inputStream = ByteArrayInputStream(input.toByteArray(Charsets.UTF_8))
+                val output = transformInputStreamToText(inputStream)
+                assert( output.equals("Hello there!"))
             }
         }
 

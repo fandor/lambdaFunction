@@ -23,7 +23,7 @@ open class ReachEngineEventHandlerFunction(val fileRepository: FileRepo, val top
 
     override fun accept(event: S3EventNotification) {
 
-        println("event: ${event}")
+        LOG.debug("event: ${event}")
         val lastRecord = event.records.last() // have to get a record from the records list
 
         val textEventOutput = fileRepository.getFileContent(lastRecord.s3.bucket.name,lastRecord.s3.`object`.key)//get file
