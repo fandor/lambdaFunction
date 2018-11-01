@@ -1,7 +1,6 @@
 package fandor
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.event.S3EventNotification
 import io.micronaut.function.FunctionBean
@@ -11,52 +10,68 @@ import java.util.function.Consumer
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.PublishRequest
+import io.micronaut.context.annotation.Property
 import java.io.InputStream
 
 
 //import AWS from 'aws-sdk'
 
 @FunctionBean("reach-engine-event-handler")
-class ReachEngineEventHandlerFunction : Consumer< S3EventNotification> {
+open class ReachEngineEventHandlerFunction(val fileRepository: FileRepo, val topicGateway: TopicGateway) : Consumer<S3EventNotification> {
 
     val LOG: Logger = LoggerFactory.getLogger(ReachEngineEventHandlerFunction::class.java)
 
     override fun accept(event: S3EventNotification) {
 
-        println("event: ${event}")
+        LOG.debug("event: ${event}")
         val lastRecord = event.records.last() // have to get a record from the records list
-        println("bucket name: ${lastRecord}")
-        LOG.debug("bucket name: ${lastRecord}")
-        println("s3: ${lastRecord.s3}")
-        LOG.debug("s3: ${lastRecord.s3}")
-        println("bucket name: ${lastRecord.s3.bucket.name}")
-        LOG.debug("bucket name: ${lastRecord.s3.bucket.name}")
-        val s3bucketlink = "https://s3.amazonaws.com/" + lastRecord.s3.bucket.name +"/" +lastRecord.s3.`object`.key
-        println("link: ${s3bucketlink}")
 
-        val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard()
-                .withRegion(lastRecord.awsRegion)
+        val textEventOutput = fileRepository.getFileContent(lastRecord.s3.bucket.name,lastRecord.s3.`object`.key)//get file
+
+        topicGateway.post(textEventOutput)
+
+    }
+
+}
+
+fun transformInputStreamToText(input: InputStream): String {
+    // Read the text input stream one line at a time and display each line.
+    val inputAsString = input.bufferedReader().use { it.readText() }
+    return inputAsString
+}
+
+interface FileRepo {
+    fun getFileContent(directory: String, fileName:String): String
+}
+
+class S3FileRepo(@Property(name = "clients.s3.name") val region: String) : FileRepo {
+
+    override fun getFileContent(directory: String, fileName:String): String {
+        val LOG = LoggerFactory.getLogger(ReachEngineEventHandlerFunction::class.java)
+
+        val s3Client = AmazonS3ClientBuilder.standard()
+                .withRegion(region)
                 .withCredentials(DefaultAWSCredentialsProviderChain.getInstance())
                 .build()
-        val payloadObject = s3Client.getObject(lastRecord.s3.bucket.name, lastRecord.s3.`object`.key)
-        println("payloadObject: ${payloadObject}")
-        println("object content: ")
-        val message = getTextFromStream(payloadObject.objectContent)
+        val payloadObject = s3Client.getObject(directory, fileName)
+        return transformInputStreamToText(payloadObject.objectContent)
 
+    }
+}
+
+interface TopicGateway {
+    fun post(message: String)
+}
+
+class SNSTopicGateway : TopicGateway {
+    override fun post(message: String) {
+        val LOG: Logger = LoggerFactory.getLogger(ReachEngineEventHandlerFunction::class.java)
         val snsClient = AmazonSNSClientBuilder.standard().withRegion(Regions.US_EAST_1).build()
 
         val topicArn = "arn:aws:sns:us-east-1:862208614941:update-film"
         val publishRequest = PublishRequest(topicArn, message)
         val publishResult = snsClient.publish(publishRequest)
         //print MessageId of message published to SNS topic
-        println("MessageId - " + publishResult.getMessageId())
-
+        LOG.debug("MessageId - " + publishResult.getMessageId())
     }
-    fun getTextFromStream(input: InputStream):String {
-        // Read the text input stream one line at a time and display each line.
-        val inputAsString = input.bufferedReader().use { it.readText() }
-        return inputAsString
-    }
-
 }
-
