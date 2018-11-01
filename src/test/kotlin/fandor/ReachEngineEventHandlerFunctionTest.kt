@@ -36,7 +36,10 @@ object ReachEngineEventHandlerFunctionTest : Spek({
                 verify { fileRepoMock.getFileContent(record.s3.bucket.name,record.s3.`object`.key) }
             }
             it("tests ReachEngineEventHandlerFunction gets & accepts topicGateway") {
-                verify { topicGatewayMock.post(fileRepoMock.getFileContent(record.s3.bucket.name,record.s3.`object`.key)) }
+               	 val  fileName = record.s3.`object`.key
+		 val  directoryName = record.s3.bucket.name
+		 val fileContent = fileRepoMock.getFileContent(directoryName,fileName)
+		 verify { topicGatewayMock.post(fileContent) }
             }
         }
 
