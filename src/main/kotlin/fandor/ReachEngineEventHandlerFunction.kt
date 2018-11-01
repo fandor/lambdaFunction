@@ -17,7 +17,7 @@ import java.io.InputStream
 //import AWS from 'aws-sdk'
 
 @FunctionBean("reach-engine-event-handler")
-open class ReachEngineEventHandlerFunction(val fileRepository: FileRepo, val topicGateway: TopicGateway) : Consumer<S3EventNotification> {
+class ReachEngineEventHandlerFunction(val fileRepository: FileRepo, val topicGateway: TopicGateway) : Consumer<S3EventNotification> {
 
     val LOG: Logger = LoggerFactory.getLogger(ReachEngineEventHandlerFunction::class.java)
 
